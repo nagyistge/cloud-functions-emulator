@@ -15,7 +15,6 @@
 
 'use strict';
 
-const chai = require('chai');
 const path = require('path');
 const controller = require('../src/controller.js');
 const fs = require('fs');
@@ -198,7 +197,7 @@ describe('Cloud Functions Emulator Tests', function () {
         }
 
         try {
-          chai.expect(list).to.deep.equal({
+          assert.deepEqual(list, {
             hello: {
               name: 'hello',
               path: TEST_MODULE,
@@ -233,7 +232,7 @@ describe('Cloud Functions Emulator Tests', function () {
             return;
           }
           try {
-            chai.expect(list).to.deep.equal({});
+            assert.deepEqual(list, {});
             done();
           } catch (e) {
             done(e);
@@ -261,7 +260,7 @@ describe('Cloud Functions Emulator Tests', function () {
             return;
           }
           try {
-            chai.expect(list).to.deep.equal({});
+            assert.deepEqual(list, {});
             done();
           } catch (e) {
             done(e);
@@ -283,7 +282,7 @@ describe('Cloud Functions Emulator Tests', function () {
           return;
         }
         try {
-          chai.expect(body).to.equal('Hello World');
+          assert.equal(body, 'Hello World');
           done();
         } catch (e) {
           done(e);
@@ -306,7 +305,7 @@ describe('Cloud Functions Emulator Tests', function () {
           return;
         }
         try {
-          chai.expect(body).to.equal('bar');
+          assert.equal(body, 'bar');
           done();
         } catch (e) {
           done(e);
@@ -329,7 +328,7 @@ describe('Cloud Functions Emulator Tests', function () {
           return;
         }
         try {
-          chai.expect(body).to.equal('bar');
+          assert.equal(body, 'bar');
           done();
         } catch (e) {
           done(e);
@@ -351,7 +350,7 @@ describe('Cloud Functions Emulator Tests', function () {
           return;
         }
         try {
-          chai.expect(body).to.equal('bar');
+          assert.equal(body, 'bar');
           done();
         } catch (e) {
           done(e);
@@ -372,7 +371,7 @@ describe('Cloud Functions Emulator Tests', function () {
           return;
         }
         try {
-          chai.expect(body).to.deep.equal({
+          assert.deepEqual(body, {
             message: 'Hello World'
           });
           done();
@@ -383,7 +382,7 @@ describe('Cloud Functions Emulator Tests', function () {
     });
   });
 
-  it("Functions that throw exceptions don't crash the process", function (done) {
+  it('Functions that throw exceptions don\'t crash the process', function (done) {
     controller.deploy(TEST_MODULE, 'helloThrow', 'B', function (err) {
       if (err) {
         done(err);
@@ -392,7 +391,7 @@ describe('Cloud Functions Emulator Tests', function () {
       controller.call('helloThrow', {}, function (err, body) {
         if (err) {
           try {
-            chai.expect(err.indexOf('uncaught exception!')).not.to.equal(-1);
+            assert.equal(err.includes('uncaught exception'), true);
 
             // Ensure the process is still running
             controller.status(function (err, status) {

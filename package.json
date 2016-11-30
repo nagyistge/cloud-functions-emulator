@@ -31,10 +31,12 @@
     "globals": [
       "after",
       "afterEach",
+      "assert",
       "before",
       "beforeEach",
       "describe",
-      "it"
+      "it",
+      "sinon"
     ],
     "ignore": [
       "**/node_modules/**",
@@ -44,9 +46,9 @@
   },
   "scripts": {
     "lint": "semistandard \"**/*.js\"",
-    "mocha": "mocha test/ --recursive -t 20000 -R dot",
-    "mocha-debug": "mocha debug test/ --recursive -t 20000 -R dot",
-    "cover": "nyc --cache mocha test/ --recursive -t 20000 -R dot && nyc report --reporter=html",
+    "mocha": "mocha test/_setup test/ --recursive -t 5000 -R dot",
+    "mocha-debug": "mocha debug test/_setup test/ --recursive -t 5000 -R dot",
+    "cover": "nyc --cache mocha test/_setup test/ --recursive -t 5000 -R dot && nyc report --reporter=html",
     "test": "npm run lint && npm run cover",
     "format": "semistandard-format -w"
   },
@@ -63,10 +65,10 @@
     "yargs": "^6.0.0"
   },
   "devDependencies": {
-    "chai": "^3.5.0",
     "istanbul": "^0.4.5",
     "mocha": "^3.1.0",
     "nyc": "^8.3.2",
+    "power-assert": "^1.4.2",
     "proxyquire": "^1.7.10",
     "semistandard": "^9.0.0",
     "semistandard-format": "^3.0.0",

@@ -15,9 +15,9 @@
 
 'use strict';
 
-var config = require('../../../config.js');
+const config = require('../../../config.js');
 const controller = require('../../controller');
-const list = require('./list');
+const list = require('./list').handler;
 const utils = require('../utils');
 
 /**
@@ -59,8 +59,8 @@ exports.handler = (opts) => {
     projectId = opts.projectId;
   }
 
-  var debug = (opts && opts.debug) || false;
-  var inspect = (opts && opts.inspect) || false;
+  const debug = (opts && opts.debug) || false;
+  const inspect = (opts && opts.inspect) || false;
 
   utils.writer.log('Starting ' + utils.APP_NAME + 'on port ' + config.port + '...');
 

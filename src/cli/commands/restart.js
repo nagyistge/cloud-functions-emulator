@@ -16,7 +16,7 @@
 'use strict';
 
 const controller = require('../../controller');
-const list = require('./list');
+const list = require('./list').handler;
 const start = require('./start');
 const utils = require('../utils');
 

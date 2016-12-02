@@ -23,7 +23,7 @@ const EOL = require('os').EOL;
 module.exports = {
   assertLogsPath: function () {
     var rootDir = path.resolve(__dirname, '../');
-    var logsDir = path.resolve(rootDir, config.logFilePath);
+    var logsDir = path.resolve(rootDir, config.get('logFilePath'));
 
     if (!_pathExists(logsDir)) {
       fs.mkdirSync(logsDir);

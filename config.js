@@ -13,32 +13,50 @@
  * limitations under the License.
  */
 
-var conf = {
+// Hierarchical node.js configuration with command-line arguments, environment
+// variables, and files.
+const nconf = module.exports = require('nconf');
 
-  // The local TCP port on which the emulator will run (default:8008)
-  port: 8008,
+nconf
+  // // 1. Command-line arguments
+  // .argv()
+  // // 2. Environment variables
+  // .env([
+  //   'GCLOUD_PROJECT',
+  //   'NODE_ENV',
+  //   'HOST',
+  //   'PORT'
+  // ])
+  // // 3. Config file
+  // .file({
+  //   file: path.join(__dirname, 'config.json')
+  // })
+  // 4. Defaults
+  .defaults({
+    // The host where the emulator will run (default:localhost)
+    host: 'localhost',
 
-  // Override to change the default debug port (default:5858)
-  debugPort: undefined,
+    // The local TCP port on which the emulator will run (default:8008)
+    port: 8008,
 
-  // Set to true to see debug logs for the emulator itself (default:true)
-  verbose: false,
+    // Override to change the default debug port (default:5858)
+    debugPort: undefined,
 
-  // Your Cloud Platform project ID
-  projectId: null,
+    // Set to true to see debug logs for the emulator itself (default:true)
+    verbose: false,
 
-  // The timeout in milliseconds to wait for the emulator to start (default:3000)
-  timeout: 3000,
+    // Your Cloud Platform project ID
+    projectId: null,
 
-  // The name of the file into which function logs will be writter
-  logFileName: 'cloud-functions-emulator.log',
+    // The timeout in milliseconds to wait for the emulator to start (default:3000)
+    timeout: 3000,
 
-  // The (relative) path to the logs directory
-  logFilePath: 'logs',
+    // The name of the file into which function logs will be writter
+    logFileName: 'cloud-functions-emulator.log',
 
-  // If true, mocks.js will be loaded at startup (default: false)
-  useMocks: false
+    // The (relative) path to the logs directory
+    logFilePath: 'logs',
 
-};
-
-module.exports = conf;
+    // If true, mocks.js will be loaded at startup (default: false)
+    useMocks: false
+  });

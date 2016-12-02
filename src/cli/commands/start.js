@@ -15,8 +15,8 @@
 
 'use strict';
 
-const config = require('../../../config.js');
-const controller = require('../../controller');
+const config = require('../../../config');
+const controller = require('../controller');
 const list = require('./list').handler;
 const utils = require('../utils');
 
@@ -54,29 +54,23 @@ exports.builder = {
  * Handler for the "clear" command.
  */
 exports.handler = (opts) => {
-  var projectId;
-  if (opts && opts.projectId) {
-    projectId = opts.projectId;
-  }
+  return controller.status()
+    .then((status) => {
+      if (status.state === controller.STATE.RUNNING) {
+        utils.writer.write(utils.APP_NAME);
+        utils.writer.write('RUNNING\n'.cyan);
+        return;
+      }
 
-  const debug = (opts && opts.debug) || false;
-  const inspect = (opts && opts.inspect) || false;
-
-  utils.writer.log('Starting ' + utils.APP_NAME + 'on port ' + config.port + '...');
-
-  controller.start(projectId, debug, inspect, function (err, status) {
-    if (err) {
+      utils.writer.log(`Starting ${utils.APP_NAME}on port ${config.get('port')}...`);
+      return controller.start(opts)
+        .then(() => {
+          utils.writer.write(utils.APP_NAME);
+          utils.writer.write('STARTED\n'.green);
+        });
+    })
+    .then(list)
+    .catch((err) => {
       utils.writer.error(err);
-      return;
-    }
-
-    if (status === controller.ALREADY_RUNNING) {
-      utils.writer.log(utils.APP_NAME + 'already running'.cyan);
-    } else {
-      utils.writer.write(utils.APP_NAME);
-      utils.writer.write('STARTED\n'.green);
-    }
-
-    list();
-  });
+    });
 };

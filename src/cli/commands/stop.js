@@ -15,7 +15,7 @@
 
 'use strict';
 
-const controller = require('../../controller');
+const controller = require('../controller');
 const utils = require('../utils');
 
 /**
@@ -29,19 +29,15 @@ exports.builder = {};
 /**
  * Handler for the "clear" command.
  */
-exports.handler = (opts, callback) => {
-  utils.doIfRunning(() => {
-    controller.stop((err) => {
-      if (err) {
-        utils.writer.error(err);
-        if (callback) {
-          callback(err);
-        }
-        return;
-      }
-
+exports.handler = (opts) => {
+  return utils.doIfRunning()
+    .then(() => {
+      utils.writer.log(`Stopping ${utils.APP_NAME}...`);
+      return controller.stop();
+    })
+    .then(() => {
       utils.writer.write(utils.APP_NAME);
       utils.writer.write('STOPPED\n'.red);
-    });
-  });
+    })
+    .catch(utils.handleError);
 };

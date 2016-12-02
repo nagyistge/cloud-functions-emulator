@@ -27,7 +27,7 @@ const testModulePath = path.join(__dirname, '../test_module');
 
 describe('cli', () => {
   before(() => {
-    const output = run(`${cmd} start`, cwd);
+    const output = run(`${cmd} restart`, cwd);
     assert.equal(output.includes(`${prefix}STARTED`), true);
   });
 
@@ -178,6 +178,9 @@ describe('cli', () => {
   });
 
   describe('status', () => {
-    it('should show the server status');
+    it('should show the server status', () => {
+      const output = run(`${cmd} status`, cwd);
+      assert.equal(output.includes(`${prefix}is RUNNING on port 8008`), true);
+    });
   });
 });

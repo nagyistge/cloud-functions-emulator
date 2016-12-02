@@ -15,9 +15,9 @@
 
 'use strict';
 
-const controller = require('../../controller');
-const list = require('./list').handler;
-const start = require('./start');
+const controller = require('../controller');
+const start = require('./start').handler;
+const stop = require('./stop').handler;
 const utils = require('../utils');
 
 /**
@@ -29,20 +29,17 @@ exports.describe = 'Restarts the emulator.';
 exports.builder = {};
 
 /**
- * Handler for the "clear" command.
+ * Handler for the "restart" command.
  */
-exports.handler = () => {
-  controller.restart((err, status) => {
-    if (err) {
-      utils.writer.error(err);
-      return;
-    }
-    if (status === controller.STOPPED) {
-      start();
-    } else {
-      utils.writer.write(utils.APP_NAME);
-      utils.writer.write('RESTARTED\n'.green);
-      list();
-    }
-  });
+exports.handler = (opts = {}) => {
+  return controller.status()
+    .then((status) => {
+      if (status.state === controller.STATE.RUNNING) {
+        return stop()
+          .then(() => start(Object.assign(opts, status.metadata)));
+      } else {
+        return start(opts);
+      }
+    })
+    .catch(utils.handleError);
 };

@@ -16,7 +16,7 @@
 'use strict';
 
 const config = require('../../../config');
-const controller = require('../../controller');
+const controller = require('../controller');
 const utils = require('../utils');
 
 /**
@@ -31,29 +31,27 @@ exports.builder = {};
  * Handler for the "clear" command.
  */
 exports.handler = () => {
-  controller.status((err, status, env) => {
-    if (err) {
-      utils.writer.error(err);
-      return;
-    }
+  return controller.status()
+    .then((status) => {
+      utils.writer.write(`${utils.APP_NAME}`);
 
-    utils.writer.write(utils.APP_NAME + 'is ');
+      if (status.state === controller.STATE.RUNNING) {
+        utils.writer.write('is ');
+        utils.writer.write('RUNNING'.green);
+        utils.writer.write(` on port ${config.get('port')}`);
 
-    if (status === controller.RUNNING) {
-      utils.writer.write('RUNNING'.green);
-      utils.writer.write(' on port ' + config.port);
-
-      if (env) {
-        if (env.inspect && (env.inspect === 'true' || env.inspect === true)) {
-          utils.writer.write(', with ' + 'INSPECT'.yellow + ' enabled on port ' + (config.debugPort || 9229));
-        } else if (env.debug && (env.debug === 'true' || env.debug === true)) {
-          utils.writer.write(', with ' + 'DEBUG'.yellow + ' enabled on port ' + (config.debugPort || 5858));
+        if (status.metadata) {
+          if (status.metadata.inspect && (status.metadata.inspect === 'true' || status.metadata.inspect === true)) {
+            utils.writer.write(', with ' + 'INSPECT'.yellow + ' enabled on port ' + (config.get('debugPort') || 9229));
+          } else if (status.metadata.debug && (status.metadata.debug === 'true' || status.metadata.debug === true)) {
+            utils.writer.write(', with ' + 'DEBUG'.yellow + ' enabled on port ' + (config.get('debugPort') || 5858));
+          }
         }
-      }
 
-      utils.writer.write('\n');
-    } else {
-      utils.writer.write('STOPPED\n'.red);
-    }
-  });
+        utils.writer.write('\n');
+      } else {
+        utils.writer.write('STOPPED\n'.yellow);
+      }
+    })
+    .catch(utils.handleError);
 };

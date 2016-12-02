@@ -15,7 +15,7 @@
 
 'use strict';
 
-const controller = require('../../controller');
+const controller = require('../controller');
 const list = require('./list').handler;
 const utils = require('../utils');
 
@@ -33,15 +33,11 @@ exports.builder = {};
  * @param {string} opts.functionName TODO.
  */
 exports.handler = (opts) => {
-  utils.doIfRunning(() => {
-    controller.undeploy(opts.functionName, (err, body) => {
-      if (err) {
-        utils.writer.error(err);
-        utils.writer.error('Delete aborted'.red);
-        return;
-      }
+  return utils.doIfRunning()
+    .then(() => controller.undeploy(opts.functionName))
+    .then(() => {
       utils.writer.log(`Function ${opts.functionName} deleted.`.green);
       list();
-    });
-  });
+    })
+    .catch(utils.handleError);
 };

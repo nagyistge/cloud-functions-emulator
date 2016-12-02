@@ -17,7 +17,7 @@
 
 const fs = require('fs');
 
-const controller = require('../../controller');
+const controller = require('../controller');
 const utils = require('../utils');
 
 /**
@@ -63,26 +63,13 @@ exports.handler = (opts) => {
     throw new Error('You must specify a "data" or "file" option!');
   }
 
-  utils.doIfRunning(() => {
-    controller.call(opts.functionName, opts.data, (err, body, response) => {
-      if (err) {
-        utils.writer.error(err);
-        return;
-      }
+  return utils.doIfRunning()
+    .then(() => controller.call(opts.functionName, opts.data))
+    .then((response) => {
       utils.writer.write('Function completed in:  ');
       utils.writer.write((response.headers['x-response-time'] + '\n').green);
 
-      utils.writer.log(body);
-
-      controller.status((err, status) => {
-        if (err) {
-          utils.writer.error(
-            utils.APP_NAME +
-            'exited unexpectedly.  Check the cloud-functions-emulator.log for more details'
-              .red);
-          return;
-        }
-      });
-    });
-  });
+      utils.writer.log(response.body);
+    })
+    .catch(utils.handleError);
 };

@@ -56,7 +56,7 @@ var self = {
     var logsDir = logs.assertLogsPath();
     var logLevel = 'info';
 
-    if (config.verbose === true) {
+    if (config.get('verbose') === true) {
       logLevel = 'debug';
     }
 
@@ -64,7 +64,7 @@ var self = {
       transports: [
         new winston.transports.File({
           json: false,
-          filename: path.resolve(logsDir, config.logFileName),
+          filename: path.resolve(logsDir, config.get('logFileName')),
           maxsize: 1048576,
           level: logLevel
         })
@@ -99,8 +99,8 @@ var self = {
     process.env['GCLOUD_PROJECT'] = config.projectId;
     process.env['GCP_PROJECT'] = config.projectId;
 
-    if (config.projectId) {
-      console.debug('Set project ID to ' + config.projectId);
+    if (config.get('projectId')) {
+      console.debug('Set project ID to ' + config.get('projectId'));
     }
 
     // The functions file is a registry of deployed functions.  We want
@@ -120,7 +120,7 @@ var self = {
     self._setupApp();
 
     // Override Module._load to we can inject mocks into calls to require()
-    if (config.useMocks) {
+    if (config.get('useMocks')) {
       try {
         var override = require('../mocks');
         if (override) {
@@ -168,7 +168,7 @@ var self = {
       if (req.query.env) {
         res.set('Content-type', 'application/json');
         res.send({
-          projectId: config.projectId,
+          projectId: config.get('projectId'),
           debug: process.env.DEBUG
         });
       } else {
@@ -240,7 +240,7 @@ var self = {
         }
 
         if (type === 'HTTP') {
-          url = 'http://localhost:' + config.port + '/' + name;
+          url = 'http://localhost:' + config.get('port') + '/' + name;
         }
 
         try {
@@ -529,9 +529,9 @@ var self = {
 
   main: function () {
     self._init();
-    console.debug('Starting emulator server on port ' + config.port +
+    console.debug('Starting emulator server on port ' + config.get('port') +
       '...');
-    self._server = self._app.listen(config.port, function () {
+    self._server = self._app.listen(config.get('port'), () => {
       console.debug('Server started');
     });
   }

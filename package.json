@@ -7,6 +7,7 @@
   "engines": {
     "node": "6.9.1"
   },
+  "main": "src/emulator.js",
   "bin": {
     "functions": "./bin/functions"
   },
@@ -58,8 +59,9 @@
     "colors": "1.1.2",
     "connect-timeout": "1.8.0",
     "express": "4.14.0",
+    "got": "^6.6.3",
     "jsonfile": "2.4.0",
-    "request": "2.79.0",
+    "nconf": "^0.8.4",
     "response-time": "2.3.2",
     "winston": "2.3.0",
     "yargs": "6.4.0"

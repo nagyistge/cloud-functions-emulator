@@ -37,7 +37,7 @@ cli
   .example('$0 logs read --limit 10', 'Display the most recent 10 lines from the logs')
   .wrap(140);
 
-module.exports = (args) => {
+exports.main = (args) => {
   cli
     .help('h')
     .alias('h', 'help')
@@ -47,3 +47,4 @@ module.exports = (args) => {
     .parse(args)
     .argv;
 };
+exports.Controller = require('./controller').Controller;

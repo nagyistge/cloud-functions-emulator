@@ -15,7 +15,7 @@
 
 'use strict';
 
-const controller = require('../../controller');
+const controller = require('../controller');
 const list = require('./list').handler;
 const utils = require('../utils');
 
@@ -31,16 +31,12 @@ exports.builder = {};
  * Handler for the "clear" command.
  */
 exports.handler = () => {
-  utils.doIfRunning(() => {
-    controller.prune((err, body) => {
-      if (err) {
-        utils.writer.error(err);
-        utils.writer.error('Prune command aborted'.red);
-        return;
-      }
+  return utils.doIfRunning()
+    .then(() => controller.prune())
+    .then((body) => {
       utils.writer.write(utils.APP_NAME);
       utils.writer.write(('PRUNED ' + body + ' functions\n').green);
       list();
-    });
-  });
+    })
+    .catch(utils.handleError);
 };

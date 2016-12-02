@@ -17,7 +17,7 @@
 
 const Table = require('cli-table2');
 
-const controller = require('../controller');
+const controller = require('./controller');
 
 const APP_NAME = exports.APP_NAME = 'Google Cloud Functions Emulator ';
 
@@ -34,7 +34,9 @@ const writer = exports.writer = {
 };
 
 exports.printDescribe = (body) => {
-  body = JSON.parse(body);
+  if (typeof body === 'string') {
+    body = JSON.parse(body);
+  }
 
   const table = new Table({
     head: ['Property'.cyan, 'Value'.cyan],
@@ -51,17 +53,15 @@ exports.printDescribe = (body) => {
   writer.log(table.toString());
 };
 
-exports.doIfRunning = (fn) => {
-  controller.status((err, status) => {
-    if (err) {
-      writer.error(err);
-      return;
-    }
+exports.doIfRunning = () => {
+  return controller.status()
+    .then((status) => {
+      if (status.state !== controller.STATE.RUNNING) {
+        throw new Error(`${APP_NAME}is not running. Run "functions start" to start it.`);
+      }
+    });
+};
 
-    if (status === controller.RUNNING) {
-      fn();
-    } else {
-      writer.write((`${APP_NAME}is not running. Use "functions start" to start the emulator\n`).cyan);
-    }
-  });
+exports.handleError = (err) => {
+  writer.error(`${'ERROR'.red}: ${err.message}`);
 };

@@ -15,7 +15,7 @@
 
 'use strict';
 
-const controller = require('../../controller');
+const controller = require('../controller');
 const utils = require('../utils');
 
 /**
@@ -30,13 +30,8 @@ exports.builder = {};
  * Handler for the "describe" command.
  */
 exports.handler = (opts) => {
-  utils.doIfRunning(() => {
-    controller.describe(opts.functionName, (err, body) => {
-      if (err) {
-        utils.writer.error(err);
-        return;
-      }
-      utils.printDescribe(body);
-    });
-  });
+  return utils.doIfRunning()
+    .then(() => controller.describe(opts.functionName))
+    .then(utils.printDescribe)
+    .catch(utils.handleError);
 };

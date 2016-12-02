@@ -15,7 +15,7 @@
 
 'use strict';
 
-const controller = require('../../controller');
+const controller = require('../controller');
 const utils = require('../utils');
 
 /**
@@ -40,16 +40,14 @@ exports.builder = {
  * @param {boolean} [opts.trigger-http] TODO.
  */
 exports.handler = (opts) => {
-  utils.doIfRunning(() => {
-    const type = (opts['trigger-http'] === true) ? 'H' : 'B';
-    controller.deploy(opts.modulePath, opts.functionName, type, (err, body) => {
-      if (err) {
-        utils.writer.error(err);
-        utils.writer.error('Deployment aborted'.red);
-        return;
-      }
+  return utils.doIfRunning()
+    .then(() => {
+      const type = (opts['trigger-http'] === true) ? 'H' : 'B';
+      return controller.deploy(opts.modulePath, opts.functionName, type);
+    })
+    .then((body) => {
       utils.writer.log(`Function ${opts.functionName} deployed.`.green);
       utils.printDescribe(body);
-    });
-  });
+    })
+    .catch(utils.handleError);
 };

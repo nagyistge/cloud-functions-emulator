@@ -15,17 +15,17 @@
 
 'use strict';
 
-const TIMEOUT_POLL_INCREMENT = 500;
-const got = require('got');
-const store = require('./store');
-const path = require('path');
-const net = require('net');
-const spawn = require('child_process').spawn;
-const logs = require('../emulator/logs');
-const fs = require('fs');
-const merge = require('lodash.merge');
-const PID_PATH = path.join(__dirname, 'process.pid');
 
+const fs = require('fs');
+const got = require('got');
+const net = require('net');
+const path = require('path');
+const spawn = require('child_process').spawn;
+
+const logs = require('../emulator/logs');
+const store = require('./store');
+
+const TIMEOUT_POLL_INCREMENT = 500;
 const STATE = {
   STOPPED: 0,
   RUNNING: 1
@@ -47,25 +47,28 @@ class Controller {
     return `${this.getEmulatorRootUri(opts)}/function/`;
   }
 
+  getSetting (key, opts) {
+    return opts[key] || store.config.get(key);
+  }
+
   /**
    * Starts the emulator process
    */
   start (opts) {
     return Promise.resolve()
       .then(() => {
-        const host = opts.host || store.config.get('host');
-        const port = opts.port || store.config.get('port');
-        const projectId = opts.projectId || store.config.get('projectId') || process.env.GCLOUD_PROJECT;
+        const host = this.getSetting('host', opts);
+        const port = this.getSetting('port', opts);
+        const projectId = this.getSetting('projectId', opts) || process.env.GCLOUD_PROJECT;
 
         // We will pipe stdout from the child process to the emulator log file
-        const logFile = logs.assertLogsPath(opts.logFile || store.config.get('logFile'));
+        const logFile = logs.assertLogsPath(this.getSetting('logFile', opts));
 
         // Starting the emulator amounts to spawning a child node process.
         // The child process will be detached so we don't hold an open socket
         // in the console. The detached process runs an HTTP server (ExpressJS).
         // Communication to the detached process is then done via HTTP
 
-        // TODO: Merge these options with the config file, if specified.
         const args = [
           '.',
           '--host',
@@ -75,18 +78,18 @@ class Controller {
           '--projectId',
           projectId,
           '--timeout',
-          opts.timeout || store.config.get('timeout'),
+          this.getSetting('timeout', opts),
           '--verbose',
-          opts.verbose || store.config.get('verbose'),
+          this.getSetting('verbose', opts),
           '--useMocks',
-          opts.useMocks || store.config.get('useMocks'),
+          this.getSetting('useMocks', opts),
           '--logFile',
-          opts.logFile || store.config.get('logFile')
+          logFile
         ];
 
-        const debug = opts.debug || store.config.get('debug');
-        const debugPort = opts.debugPort || store.config.get('debugPort');
-        const inspect = opts.inspect || store.config.get('inspect');
+        const debug = this.getSetting('debug', opts);
+        const debugPort = this.getSetting('debugPort', opts);
+        const inspect = this.getSetting('inspect', opts);
 
         // TODO:
         // For some bizzare reason boolean values in the environment of the
@@ -168,10 +171,9 @@ class Controller {
    * @param {object} opts Configuration options.
    */
   kill (opts) {
-    return Promise.resolve(PID_PATH)
-      .then((pidPath) => {
-        const pid = parseInt(fs.readFileSync(pidPath), 10);
-        process.kill(pid);
+    return Promise.resolve()
+      .then(() => {
+        process.kill(store.status.get('pid'));
         store.status.clear();
       })
       .catch(() => store.status.clear());

@@ -92,7 +92,7 @@ exports.handler = (opts) => {
         return;
       }
 
-      utils.writer.log(`Starting ${utils.APP_NAME}on port ${opts.port}...`);
+      utils.writer.log(`Starting ${utils.APP_NAME}...`);
       return controller.start(opts)
         .then(() => {
           utils.writer.write(utils.APP_NAME);

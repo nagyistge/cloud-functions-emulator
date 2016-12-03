@@ -20,7 +20,6 @@ require('colors');
 const cli = require('../config');
 const fs = require('fs');
 const path = require('path');
-const store = require('./store');
 
 // Load the commands
 fs
@@ -31,13 +30,6 @@ fs
 
 cli
   .demand(1)
-  .options({
-    config: {
-      alias: 'c',
-      default: store.config.path,
-      description: 'Path to a config .json file.'
-    }
-  })
   .example('$0 deploy ~/myModule helloWorld --trigger-http', 'Deploy helloWorld as an HTTP function from the module located in ~/myModule')
   .example('$0 call helloWorld', 'Invoke the helloWorld function with no data argument')
   .example('$0 call helloWorld --data \'{"foo": "bar"}\'', 'Invoke the helloWorld function with a JSON document argument')

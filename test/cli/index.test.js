@@ -43,7 +43,7 @@ describe('cli', () => {
 
   describe('call', () => {
     before(() => {
-      const output = run(`${cmd} deploy test/test_module ${name}`, cwd);
+      const output = run(`${cmd} deploy ${name} test/test_module`, cwd);
       assert.equal(output.includes(`Function ${name} deployed.`), true);
     });
 
@@ -58,10 +58,10 @@ describe('cli', () => {
       let output = run(`${cmd} list`, cwd);
       assert.equal(output.includes('No functions deployed'), true);
 
-      output = run(`${cmd} deploy test/test_module ${name}`, cwd);
+      output = run(`${cmd} deploy ${name} test/test_module`, cwd);
       assert.equal(output.includes(`Function ${name} deployed.`), true);
 
-      output = run(`${cmd} deploy test/test_module helloData`, cwd);
+      output = run(`${cmd} deploy helloData test/test_module`, cwd);
       assert.equal(output.includes(`Function helloData deployed.`), true);
 
       output = run(`${cmd} list`, cwd);
@@ -86,10 +86,10 @@ describe('cli', () => {
       let output = run(`${cmd} list`, cwd);
       assert.equal(output.includes('No functions deployed'), true);
 
-      output = run(`${cmd} deploy test/test_module ${name}`, cwd);
+      output = run(`${cmd} deploy ${name} test/test_module`, cwd);
       assert.equal(output.includes(`Function ${name} deployed.`), true);
 
-      output = run(`${cmd} deploy test/test_module helloData`, cwd);
+      output = run(`${cmd} deploy helloData test/test_module`, cwd);
       assert.equal(output.includes(`Function helloData deployed.`), true);
 
       output = run(`${cmd} list`, cwd);
@@ -125,7 +125,7 @@ describe('cli', () => {
     });
 
     it('should deploy a background function', () => {
-      let output = run(`${cmd} deploy test/test_module ${name}`, cwd);
+      let output = run(`${cmd} deploy ${name} test/test_module`, cwd);
       assert.equal(output.includes(`Function ${name} deployed.`), true);
 
       output = run(`${cmd} list`, cwd);
@@ -139,7 +139,7 @@ describe('cli', () => {
 
   describe('describe', () => {
     before(() => {
-      const output = run(`${cmd} deploy test/test_module ${name}`, cwd);
+      const output = run(`${cmd} deploy ${name} test/test_module`, cwd);
       assert.equal(output.includes(`Function ${name} deployed.`), true);
     });
 

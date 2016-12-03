@@ -15,7 +15,6 @@
 
 'use strict';
 
-
 const fs = require('fs');
 const got = require('got');
 const net = require('net');

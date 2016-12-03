@@ -23,17 +23,25 @@ const utils = require('../utils');
  */
 exports.command = 'stop';
 exports.describe = 'Stops the emulator gracefully.';
-
-exports.builder = {};
+exports.builder = {
+  timeout: {
+    alias: 't',
+    description: 'The timeout in milliseconds to wait for the emulator to stop.',
+    requiresArg: true,
+    type: 'number'
+  }
+};
 
 /**
- * Handler for the "clear" command.
+ * Handler for the "stop" command.
+ *
+ * @param {object} opts Configuration options.
  */
 exports.handler = (opts) => {
-  return utils.doIfRunning()
+  return utils.doIfRunning(opts)
     .then(() => {
       utils.writer.log(`Stopping ${utils.APP_NAME}...`);
-      return controller.stop();
+      return controller.stop(opts);
     })
     .then(() => {
       utils.writer.write(utils.APP_NAME);

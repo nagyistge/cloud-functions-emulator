@@ -15,7 +15,6 @@
 
 'use strict';
 
-const config = require('../../../config');
 const controller = require('../controller');
 const utils = require('../utils');
 
@@ -24,27 +23,28 @@ const utils = require('../utils');
  */
 exports.command = 'status';
 exports.describe = 'Reports the current status of the emulator.';
-
 exports.builder = {};
 
 /**
- * Handler for the "clear" command.
+ * Handler for the "status" command.
+ *
+ * @param {object} opts Configuration options.
  */
-exports.handler = () => {
-  return controller.status()
+exports.handler = (opts) => {
+  return controller.status(opts)
     .then((status) => {
       utils.writer.write(`${utils.APP_NAME}`);
 
       if (status.state === controller.STATE.RUNNING) {
         utils.writer.write('is ');
         utils.writer.write('RUNNING'.green);
-        utils.writer.write(` on port ${config.get('port')}`);
+        utils.writer.write(` on port ${status.metadata.port}`);
 
         if (status.metadata) {
           if (status.metadata.inspect && (status.metadata.inspect === 'true' || status.metadata.inspect === true)) {
-            utils.writer.write(', with ' + 'INSPECT'.yellow + ' enabled on port ' + (config.get('debugPort') || 9229));
+            utils.writer.write(', with ' + 'INSPECT'.yellow + ' enabled on port ' + (opts.debugPort || 9229));
           } else if (status.metadata.debug && (status.metadata.debug === 'true' || status.metadata.debug === true)) {
-            utils.writer.write(', with ' + 'DEBUG'.yellow + ' enabled on port ' + (config.get('debugPort') || 5858));
+            utils.writer.write(', with ' + 'DEBUG'.yellow + ' enabled on port ' + (opts.debugPort || 5858));
           }
         }
 

@@ -15,7 +15,6 @@
 
 'use strict';
 
-const config = require('../../../config');
 const controller = require('../controller');
 const list = require('./list').handler;
 const utils = require('../utils');
@@ -25,36 +24,67 @@ const utils = require('../utils');
  */
 exports.command = 'start';
 exports.describe = 'Starts the emulator.';
-
 exports.builder = {
   debug: {
     alias: 'd',
-    default: false,
     description: 'Start the emulator in debug mode.',
     type: 'boolean',
     requiresArg: false
   },
+  debugPort: {
+    alias: 'D',
+    description: 'Override to change the default debug port.',
+    requiresArg: true,
+    type: 'number'
+  },
   inspect: {
     alias: 'i',
-    default: false,
-    description: 'Experimental! (Node 7+ only).  Pass the --inspect flag to Node',
+    description: 'Experimental! (Node 6.3.0+ only). This will pass the --inspect flag to Node.',
     type: 'boolean',
     requiresArg: false
   },
+  logFile: {
+    alias: 'L',
+    description: 'The path to the logs file to which function logs will be written.',
+    requiresArg: true,
+    type: 'string'
+  },
   projectId: {
-    alias: 'p',
-    default: process.env.GCLOUD_PROJECT,
+    alias: 'P',
     description: 'Your Google Cloud Platform project ID.',
-    type: 'string',
-    requiresArg: true
+    requiresArg: true,
+    type: 'string'
+  },
+  timeout: {
+    alias: 't',
+    description: 'The timeout in milliseconds to wait for the emulator to start.',
+    requiresArg: true,
+    type: 'number'
+  },
+  useMocks: {
+    alias: 'm',
+    description: 'If true, mocks.js will be loaded at startup.',
+    requiresArg: false,
+    type: 'boolean'
+  },
+  verbose: {
+    alias: 'v',
+    description: 'Set to true to see debug logs for the emulator itself.',
+    requiresArg: false,
+    type: 'boolean'
   }
 };
 
 /**
- * Handler for the "clear" command.
+ * Handler for the "start" command.
+ *
+ * @param {object} opts Configuration options.
+ * @param {boolean} [opts.debug] Configuration options.
+ * @param {boolean} [opts.inspect] Configuration options.
+ * @param {boolean} opts.port The port the server should listen on.
  */
 exports.handler = (opts) => {
-  return controller.status()
+  return controller.status(opts)
     .then((status) => {
       if (status.state === controller.STATE.RUNNING) {
         utils.writer.write(utils.APP_NAME);
@@ -62,14 +92,14 @@ exports.handler = (opts) => {
         return;
       }
 
-      utils.writer.log(`Starting ${utils.APP_NAME}on port ${config.get('port')}...`);
+      utils.writer.log(`Starting ${utils.APP_NAME}on port ${opts.port}...`);
       return controller.start(opts)
         .then(() => {
           utils.writer.write(utils.APP_NAME);
           utils.writer.write('STARTED\n'.green);
         });
     })
-    .then(list)
+    .then(() => list(opts))
     .catch((err) => {
       utils.writer.error(err);
     });

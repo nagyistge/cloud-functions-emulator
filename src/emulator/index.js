@@ -22,10 +22,29 @@ const path = require('path');
 const jsonfile = require('jsonfile');
 const fs = require('fs');
 const winston = require('winston');
-const config = require('../config');
+const cli = require('../config');
 const invoker = require('./invoker');
 const loadHandler = require('./loadhandler');
 const logs = require('./logs');
+const merge = require('lodash.merge');
+
+const startOptions = Object.assign({}, require('../cli/commands/start').builder);
+delete startOptions.debug;
+delete startOptions.debugPort;
+delete startOptions.inspect;
+
+cli
+  .options(Object.assign(startOptions, {
+    config: {
+      alias: 'c',
+      description: 'Path to a config .json file.'
+    }
+  }))
+  .usage('In the cloud-functions-emulator/ directory:\n\n    npm start -- [options]\n\n        OR\n\n    node . [options]')
+  .wrap(120)
+  .help()
+  .version()
+  .strict();
 
 var self = {
   _log: null,
@@ -34,7 +53,7 @@ var self = {
   _functions: null,
   _functionsFile: null,
 
-  _init: function () {
+  _init (opts) {
     // Add a global error handler to catch all unexpected exceptions in the process
     // Note that this will not include any unexpected system errors (syscall failures)
     process.on('uncaughtException', function (err) {
@@ -53,10 +72,10 @@ var self = {
     // Setup the winston logger.  We're going to write to a file which will
     // automatically roll when it exceeds ~1MB.
 
-    var logsDir = logs.assertLogsPath();
+    const logFile = logs.assertLogsPath(opts.logFile);
     var logLevel = 'info';
 
-    if (config.get('verbose') === true) {
+    if (opts.verbose === true) {
       logLevel = 'debug';
     }
 
@@ -64,7 +83,7 @@ var self = {
       transports: [
         new winston.transports.File({
           json: false,
-          filename: path.resolve(logsDir, config.get('logFileName')),
+          filename: logFile,
           maxsize: 1048576,
           level: logLevel
         })
@@ -94,13 +113,8 @@ var self = {
       self._log.debug.apply(self._log, arguments);
     };
 
-    // Set the project ID to be used
-    config.projectId = process.argv[3] || config.projectId;
-    process.env['GCLOUD_PROJECT'] = config.projectId;
-    process.env['GCP_PROJECT'] = config.projectId;
-
-    if (config.get('projectId')) {
-      console.debug('Set project ID to ' + config.get('projectId'));
+    if (opts.projectId) {
+      console.debug(`Set project ID to ${opts.projectId}`);
     }
 
     // The functions file is a registry of deployed functions.  We want
@@ -117,10 +131,10 @@ var self = {
     self._functions = jsonfile.readFileSync(self._functionsFile);
 
     // Create Express App
-    self._setupApp();
+    self._setupApp(opts);
 
     // Override Module._load to we can inject mocks into calls to require()
-    if (config.get('useMocks')) {
+    if (opts.useMocks) {
       try {
         var override = require('../mocks');
         if (override) {
@@ -133,7 +147,7 @@ var self = {
     }
   },
 
-  _setupApp: function () {
+  _setupApp (opts) {
     // Standard ExpressJS app.  Where possible this should mimic the *actual*
     // setup of Cloud Functions regarding the use of body parsers etc.
     self._app = express();
@@ -168,7 +182,7 @@ var self = {
       if (req.query.env) {
         res.set('Content-type', 'application/json');
         res.send({
-          projectId: config.get('projectId'),
+          projectId: opts.projectId,
           debug: process.env.DEBUG
         });
       } else {
@@ -207,7 +221,7 @@ var self = {
           return;
         }
 
-        console.debug('Loading module in path ' + p);
+        console.debug(`Loading module in path ${p}`);
 
         var mod = null;
 
@@ -225,8 +239,7 @@ var self = {
         }
 
         if (!mod[name]) {
-          res.status(404).send('\nNo function found in module ' + p +
-            ' with name ' + name);
+          res.status(404).send(`\nNo function found in module ${p} with name ${name}`);
           return;
         }
 
@@ -240,7 +253,7 @@ var self = {
         }
 
         if (type === 'HTTP') {
-          url = 'http://localhost:' + config.get('port') + '/' + name;
+          url = `http://localhost:${opts.port}/${name}`;
         }
 
         try {
@@ -253,7 +266,7 @@ var self = {
 
           jsonfile.writeFileSync(self._functionsFile, self._functions);
 
-          console.debug('Deployed function ' + name + ' at path ' + p);
+          console.debug(`Deployed function ${name} at path ${p}`);
 
           res.json(self._functions[name]);
         } catch (err) {
@@ -262,9 +275,7 @@ var self = {
         }
       } catch (err) {
         console.error(err);
-        res.status(400).send(
-          '\nFailed during module path check\n' +
-          err.stack);
+        res.status(400).send(`\nFailed during module path check\n${err.stack}`);
       }
     });
 
@@ -294,7 +305,7 @@ var self = {
       // undeploy
       delete self._functions[req.params.name];
       jsonfile.writeFileSync(self._functionsFile, self._functions);
-      console.debug('Undeployed function ' + req.params.name);
+      console.debug(`Undeployed function ${req.params.name}`);
       res.status(200).end();
     });
 
@@ -330,7 +341,7 @@ var self = {
 
       jsonfile.writeFileSync(self._functionsFile, self._functions);
 
-      console.debug('Pruned ' + pruned + ' orphaned functions');
+      console.debug(`Pruned ${pruned} orphaned functions`);
       res.status(200).send(pruned.toString());
     });
 
@@ -379,14 +390,14 @@ var self = {
     self._app.all('/*', function (req, res) {
       var fn = req.path.substring(1, req.path.length);
 
-      console.debug('Executing ' + req.method + ' on function ' + fn);
+      console.debug(`Executing ${req.method} on function ${fn}`);
 
       var func = self._functions[fn];
 
       if (func) {
         self._invoke(func, req, res);
       } else {
-        res.status(404).send('No function with name ' + fn);
+        res.status(404).send(`No function with name ${fn}`);
       }
     });
   },
@@ -395,11 +406,11 @@ var self = {
    * Removes a previously required module from the require cache
    * @param {String} path The file system path to the module
    */
-  _unrequire: function (path) {
+  _unrequire (path) {
     delete require.cache[require.resolve(path)];
   },
 
-  _invoke: function (fn, req, res) {
+  _invoke (fn, req, res) {
     // Ensure the module is not loaded from cache
     // This has obvious negative performance implications, with the
     // benefit of allowing function code to be changed out of band
@@ -413,7 +424,7 @@ var self = {
     var type = fn.type;
 
     if (!func) {
-      res.status(500).send('No function found with name ' + fn.name);
+      res.status(500).send(`No function found with name ${fn.name}`);
       return;
     }
 
@@ -508,13 +519,13 @@ var self = {
     }
   },
 
-  _errorHandler: function (err, req, res, next) {
+  _errorHandler (err, req, res, next) {
     console.error(err.stack);
     res.status(500).send(err.stack);
     next(err);
   },
 
-  _pathExists: function (p) {
+  _pathExists (p) {
     try {
       fs.statSync(p);
       return true;
@@ -527,16 +538,22 @@ var self = {
     }
   },
 
-  main: function () {
-    self._init();
-    console.debug('Starting emulator server on port ' + config.get('port') +
-      '...');
-    self._server = self._app.listen(config.get('port'), () => {
-      console.debug('Server started');
+  main (opts) {
+    if (opts.config) {
+      Object.assign(opts, require(path.resolve(opts.config)));
+    }
+    opts.projectId || (opts.projectId = process.env.GCLOUD_PROJECT);
+    opts = merge(require('../defaults.json'), opts);
+    self._init(opts);
+    console.debug(`Starting emulator server on port ${opts.port}...`);
+    self._server = self._app.listen(opts.port, () => {
+      console.debug(`Server listening on port ${opts.port}.`);
     });
   }
 };
 
 module.exports = self;
 
-self.main();
+if (module === require.main) {
+  self.main(cli.argv);
+}

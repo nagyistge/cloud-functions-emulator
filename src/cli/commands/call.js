@@ -25,7 +25,6 @@ const utils = require('../utils');
  */
 exports.command = 'call <functionName>';
 exports.describe = 'Invokes a function. You must specify either the "data" or the "file" option.';
-
 exports.builder = {
   data: {
     alias: 'd',
@@ -46,7 +45,7 @@ exports.builder = {
  * Handler for the "call" command.
  *
  * @param {object} opts Configuration options.
- * @param {string} opts.functionName TODO.
+ * @param {string} opts.functionName The name of the function to call.
  * @param {string} [opts.data] TODO.
  * @param {string} [opts.file] TODO.
  */
@@ -63,8 +62,8 @@ exports.handler = (opts) => {
     throw new Error('You must specify a "data" or "file" option!');
   }
 
-  return utils.doIfRunning()
-    .then(() => controller.call(opts.functionName, opts.data))
+  return utils.doIfRunning(opts)
+    .then(() => controller.call(opts.functionName, opts.data, opts))
     .then((response) => {
       utils.writer.write('Function completed in:  ');
       utils.writer.write((response.headers['x-response-time'] + '\n').green);

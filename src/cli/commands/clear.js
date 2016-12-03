@@ -24,19 +24,20 @@ const utils = require('../utils');
  */
 exports.command = 'clear';
 exports.describe = 'Resets the emulator to its default state and clears and deployed functions.';
-
 exports.builder = {};
 
 /**
  * Handler for the "clear" command.
+ *
+ * @param {object} opts Configuration options.
  */
-exports.handler = () => {
-  return utils.doIfRunning()
-    .then(() => controller.clear())
+exports.handler = (opts) => {
+  return utils.doIfRunning(opts)
+    .then(() => controller.clear(opts))
     .then(() => {
       utils.writer.write(utils.APP_NAME);
       utils.writer.write('CLEARED\n'.green);
     })
-    .then(list)
+    .then(() => list(opts))
     .catch(utils.handleError);
 };

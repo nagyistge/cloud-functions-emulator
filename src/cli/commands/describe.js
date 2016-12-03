@@ -23,15 +23,17 @@ const utils = require('../utils');
  */
 exports.command = 'describe <functionName>';
 exports.describe = 'Describes the details of a single deployed function.';
-
 exports.builder = {};
 
 /**
  * Handler for the "describe" command.
+ *
+ * @param {object} opts Configuration options.
+ * @param {string} opts.functionName The name of the function to describe.
  */
 exports.handler = (opts) => {
-  return utils.doIfRunning()
-    .then(() => controller.describe(opts.functionName))
+  return utils.doIfRunning(opts)
+    .then(() => controller.describe(opts.functionName, opts))
     .then(utils.printDescribe)
     .catch(utils.handleError);
 };

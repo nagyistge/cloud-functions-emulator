@@ -35,55 +35,54 @@ function pathExists (p) {
  */
 exports.command = 'list';
 exports.describe = 'Lists deployed functions.';
-
 exports.builder = {};
 
 /**
  * Handler for the "list" command.
+ *
+ * @param {object} opts Configuration options.
  */
-exports.handler = () => {
-  return utils.doIfRunning()
-    .then(() => {
-      return controller.list()
-        .then((functions) => {
-          const table = new Table({
-            head: ['Name'.cyan, 'Type'.cyan, 'Path'.cyan],
-            colWidths: [15, 12, 52]
-          });
+exports.handler = (opts) => {
+  return utils.doIfRunning(opts)
+    .then(() => controller.list(opts))
+    .then((functions) => {
+      const table = new Table({
+        head: ['Name'.cyan, 'Type'.cyan, 'Path'.cyan],
+        colWidths: [15, 12, 52]
+      });
 
-          let type, path;
-          let count = 0;
+      let type, path;
+      let count = 0;
 
-          for (let func in functions) {
-            type = functions[func].type;
-            path = functions[func].path;
+      for (let func in functions) {
+        type = functions[func].type;
+        path = functions[func].path;
 
-            if (pathExists(path)) {
-              table.push([
-                func.white,
-                type.white,
-                path.white
-              ]);
-            } else {
-              table.push([
-                func.white,
-                type.white,
-                path.red
-              ]);
-            }
+        if (pathExists(path)) {
+          table.push([
+            func.white,
+            type.white,
+            path.white
+          ]);
+        } else {
+          table.push([
+            func.white,
+            type.white,
+            path.red
+          ]);
+        }
 
-            count++;
-          }
+        count++;
+      }
 
-          if (count === 0) {
-            table.push([{
-              colSpan: 3,
-              content: 'No functions deployed ¯\\_(ツ)_/¯.  Run "functions deploy" to deploy a function'.gray
-            }]);
-          }
+      if (count === 0) {
+        table.push([{
+          colSpan: 3,
+          content: 'No functions deployed ¯\\_(ツ)_/¯.  Run "functions deploy" to deploy a function'.gray
+        }]);
+      }
 
-          utils.writer.log(table.toString());
-        });
+      utils.writer.log(table.toString());
     })
     .catch(utils.handleError);
 };

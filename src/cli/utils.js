@@ -53,8 +53,8 @@ exports.printDescribe = (body) => {
   writer.log(table.toString());
 };
 
-exports.doIfRunning = () => {
-  return controller.status()
+exports.doIfRunning = (opts) => {
+  return controller.status(opts)
     .then((status) => {
       if (status.state !== controller.STATE.RUNNING) {
         throw new Error(`${APP_NAME}is not running. Run "functions start" to start it.`);

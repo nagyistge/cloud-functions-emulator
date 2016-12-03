@@ -30,14 +30,14 @@ exports.builder = {};
  * Handler for the "delete" command.
  *
  * @param {object} opts Configuration options.
- * @param {string} opts.functionName TODO.
+ * @param {string} opts.functionName The name of the function to delete.
  */
 exports.handler = (opts) => {
-  return utils.doIfRunning()
-    .then(() => controller.undeploy(opts.functionName))
+  return utils.doIfRunning(opts)
+    .then(() => controller.undeploy(opts.functionName, opts))
     .then(() => {
       utils.writer.log(`Function ${opts.functionName} deleted.`.green);
-      list();
+      list(opts);
     })
     .catch(utils.handleError);
 };

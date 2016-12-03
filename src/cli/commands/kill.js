@@ -23,15 +23,16 @@ const utils = require('../utils');
  */
 exports.command = 'kill';
 exports.describe = 'Force kills the emulator process if it stops responding.';
-
 exports.builder = {};
 
 /**
- * Handler for the "clear" command.
+ * Handler for the "kill" command.
+ *
+ * @param {object} opts Configuration options.
  */
-exports.handler = () => {
-  return utils.doIfRunning()
-    .then(() => controller.kill())
+exports.handler = (opts) => {
+  return utils.doIfRunning(opts)
+    .then(() => controller.kill(opts))
     .then(() => {
       utils.writer.write(utils.APP_NAME);
       utils.writer.write('KILLED\n'.red);

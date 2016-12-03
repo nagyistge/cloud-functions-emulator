@@ -17,9 +17,10 @@
 
 require('colors');
 
-const cli = require('yargs');
+const cli = require('../config');
 const fs = require('fs');
 const path = require('path');
+const store = require('./store');
 
 // Load the commands
 fs
@@ -30,19 +31,24 @@ fs
 
 cli
   .demand(1)
+  .options({
+    config: {
+      alias: 'c',
+      default: store.config.path,
+      description: 'Path to a config .json file.'
+    }
+  })
   .example('$0 deploy ~/myModule helloWorld --trigger-http', 'Deploy helloWorld as an HTTP function from the module located in ~/myModule')
   .example('$0 call helloWorld', 'Invoke the helloWorld function with no data argument')
   .example('$0 call helloWorld --data \'{"foo": "bar"}\'', 'Invoke the helloWorld function with a JSON document argument')
   .example('$0 call helloWorld --file ~/myData/datafile.json', 'Invoke the helloWorld function with a file argument')
   .example('$0 logs read --limit 10', 'Display the most recent 10 lines from the logs')
-  .wrap(140);
+  .wrap(120);
 
 exports.main = (args) => {
   cli
-    .help('h')
-    .alias('h', 'help')
+    .help()
     .version()
-    .alias('v', 'version')
     .strict()
     .parse(args)
     .argv;

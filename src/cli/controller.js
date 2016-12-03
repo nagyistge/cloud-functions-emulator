@@ -17,15 +17,14 @@
 
 const TIMEOUT_POLL_INCREMENT = 500;
 const got = require('got');
+const store = require('./store');
 const path = require('path');
 const net = require('net');
 const spawn = require('child_process').spawn;
-const config = require('../../config');
-const logs = require('../logs');
+const logs = require('../emulator/logs');
 const fs = require('fs');
+const merge = require('lodash.merge');
 const PID_PATH = path.join(__dirname, 'process.pid');
-const EMULATOR_ROOT_URI = `http://localhost:${config.get('port')}`;
-const EMULATOR_FUNC_URI = `${EMULATOR_ROOT_URI}/function/`;
 
 const STATE = {
   STOPPED: 0,
@@ -37,79 +36,101 @@ class Controller {
     this.STATE = STATE;
   }
 
+  getEmulatorRootUri (opts) {
+    const host = opts.host || store.status.get('host') || store.config.get('host');
+    const port = opts.port || store.status.get('port') || store.config.get('port');
+
+    return `http://${host}:${port}`;
+  }
+
+  getEmulatorFuncUri (opts) {
+    return `${this.getEmulatorRootUri(opts)}/function/`;
+  }
+
   /**
    * Starts the emulator process
-   *
-   * @param {object} opts Configuration options.
-   * @param {string} opts.projectId The Cloud Platform project ID to bind to this emulator instance
-   * @param {boolean} opts.debug If true, start the spawned node process with --debug
-   * @param {boolean} opts.inspect If true, start the spawned node process with --inspect
    */
   start (opts) {
     return Promise.resolve()
       .then(() => {
-        // Project ID is optional, but any function that needs to authenticate to
-        // a Google API will require a valid project ID
-        // The authentication against the project is handled by the gcloud-node
-        // module which leverages the Cloud SDK (gcloud) as the authentication basis.
-        if (!opts.projectId) {
-          opts.projectId = config.get('projectId');
-        }
+        const host = opts.host || store.config.get('host');
+        const port = opts.port || store.config.get('port');
+        const projectId = opts.projectId || store.config.get('projectId') || process.env.GCLOUD_PROJECT;
+
+        // We will pipe stdout from the child process to the emulator log file
+        const logFile = logs.assertLogsPath(opts.logFile || store.config.get('logFile'));
 
         // Starting the emulator amounts to spawning a child node process.
         // The child process will be detached so we don't hold an open socket
         // in the console. The detached process runs an HTTP server (ExpressJS).
         // Communication to the detached process is then done via HTTP
-        const args = ['.', config.get('port'), opts.projectId];
 
-        // We will pipe stdout from the child process to the emulator log file
-        const logFilePath = path.resolve(logs.assertLogsPath(), config.get('logFileName'));
+        // TODO: Merge these options with the config file, if specified.
+        const args = [
+          '.',
+          '--host',
+          host,
+          '--port',
+          port,
+          '--projectId',
+          projectId,
+          '--timeout',
+          opts.timeout || store.config.get('timeout'),
+          '--verbose',
+          opts.verbose || store.config.get('verbose'),
+          '--useMocks',
+          opts.useMocks || store.config.get('useMocks'),
+          '--logFile',
+          opts.logFile || store.config.get('logFile')
+        ];
+
+        const debug = opts.debug || store.config.get('debug');
+        const debugPort = opts.debugPort || store.config.get('debugPort');
+        const inspect = opts.inspect || store.config.get('inspect');
 
         // TODO:
         // For some bizzare reason boolean values in the environment of the
         // child process return as Strings in JSON documents sent over HTTP with
         // a content-type of application/json, so we need to check for String
         // 'true' as well as boolean.
-        if (opts.inspect === true || opts.inspect === 'true') {
+        if (inspect === true || inspect === 'true') {
           const semver = process.version.split('.');
           const major = parseInt(semver[0].substring(1, semver[0].length));
           if (major >= 6) {
             args.unshift('--inspect');
-            console.log('Starting in inspect mode.  Check ' + logFilePath + ' for details on how to connect to the chrome debugger');
+            console.log(`Starting in inspect mode. Check ${logFile} for details on how to connect to the chrome debugger.`);
           } else {
-            console.error('--inspect flag requires Node 6+');
+            console.error('--inspect flag requires Node 6.3.0+');
           }
-        } else if (opts.debug === true || opts.debug === 'true') {
-          if (config.get('debugPort')) {
-            args.unshift('--debug=' + config.get('debugPort'));
-          } else {
-            args.unshift('--debug');
-          }
-          console.log('Starting in debug mode.  Debugger listening on port ' + (config.get('debugPort') ? config.get('debugPort') : 5858));
+        } else if (debug === true || debug === 'true') {
+          args.unshift(`--debug=${debugPort}`);
+          console.log(`Starting in debug mode. Debugger listening on port ${debugPort}`);
         }
 
-        // Pass the debug flag to the environment of the child process so we can
-        // query it later.  This is used during restart operations where we don't
-        // want the user to have to remember all the startup arguments
-        // TODO: This will become unwieldy if we add more startup arguments
-        const env = process.env;
-        env.DEBUG = opts.debug;
-        env.INSPECT = opts.inspect;
-
         // Make sure the child is detached, otherwise it will be bound to the
-        // lifecycle of the parent process.  This means we should also ignore
-        // the binding of stdout.
-        const out = fs.openSync(logFilePath, 'a');
+        // lifecycle of the parent process. This means we should also ignore the
+        // binding of stdout.
+        const out = fs.openSync(logFile, 'a');
         const child = spawn('node', args, {
           cwd: path.join(__dirname, '../..'),
           detached: true,
-          stdio: ['ignore', out, out],
-          env: env
+          stdio: ['ignore', out, out]
+        });
+
+        // Update status of settings
+        store.status.set({
+          debug,
+          debugPort,
+          host,
+          inspect,
+          logFile,
+          port,
+          projectId
         });
 
         // Write the pid to the file system in case we need to kill it later
         // This can be done by the user in the 'kill' command
-        this._writePID(child.pid);
+        store.status.set('pid', child.pid);
 
         // Ensure the parent doesn't wait for the child to exit
         // This should be used in combination with the 'detached' property
@@ -121,57 +142,75 @@ class Controller {
         child.unref();
 
         // Ensure the service has started before we notify the caller.
-        return this._waitForStart(config.get('port'), config.get('timeout'));
+        return this._waitForStart(opts);
       });
   }
 
   /**
    * Notify the Emulator that it needs to stop and give it a chance to stop
    * gracfully. After a timeout, kill the process.
+   *
+   * @param {object} opts Configuration options.
    */
-  stop () {
-    return this._action({ method: 'DELETE', url: EMULATOR_ROOT_URI, timeout: 5000 })
-      .then(() => this._waitForStop(config.get('port'), config.get('timeout')))
-      .then(() => this.kill(), () => this.kill());
+  stop (opts) {
+    return this._action({
+      method: 'DELETE',
+      url: this.getEmulatorRootUri(opts),
+      timeout: 5000
+    })
+      .then(() => this._waitForStop(opts))
+      .then(() => this.kill(opts), () => this.kill(opts));
   }
 
   /**
-   * Kills the emulator process by sending a SIGTERM to the child process
+   * Kills the emulator process by sending a SIGTERM to the child process.
+   *
+   * @param {object} opts Configuration options.
    */
-  kill () {
+  kill (opts) {
     return Promise.resolve(PID_PATH)
-      .then((path) => {
-        const pid = parseInt(fs.readFileSync(path), 10);
+      .then((pidPath) => {
+        const pid = parseInt(fs.readFileSync(pidPath), 10);
         process.kill(pid);
-        this._deletePID();
+        store.status.clear();
       })
-      .catch(() => this._deletePID());
+      .catch(() => store.status.clear());
   }
 
   /**
-   * Removes (undeploys) any functions deployed to this emulator
+   * Removes (undeploys) any functions deployed to this emulator.
+   *
+   * @param {object} opts Configuration options.
    */
-  clear () {
-    return this._action({ method: 'DELETE', url: EMULATOR_FUNC_URI });
+  clear (opts) {
+    return this._action({
+      method: 'DELETE',
+      url: this.getEmulatorFuncUri(opts)
+    });
   }
 
   /**
-   * Removes (undeploys) any functions that no longer exist in their corresponding module
+   * Removes (undeploys) any functions that no longer exist in their
+   * corresponding module
+   *
+   * @param {object} opts Configuration options.
    */
-  prune () {
-    return this._action({ method: 'PATCH', url: EMULATOR_FUNC_URI });
+  prune (opts) {
+    return this._action({
+      method: 'PATCH',
+      url: this.getEmulatorFuncUri(opts)
+    });
   }
 
   /**
-   * Checks the status of the child process' service
+   * Checks the status of the child process' service.
+   *
+   * @param {object} opts Configuration options.
    */
-  status () {
-    return this.testConnection()
+  status (opts) {
+    return this.testConnection(opts)
       .then(() => {
-        return this.getCurrentEnvironment()
-          .then((env) => {
-            return { state: STATE.RUNNING, metadata: env };
-          });
+        return { state: STATE.RUNNING, metadata: store.status.all };
       }, (err) => {
         return { state: STATE.STOPPED, error: err };
       });
@@ -188,12 +227,12 @@ class Controller {
                             Should be an object that exposes a single 'write(String)' method
    * @param {integer} limit The maximum number of lines to write
    */
-  getLogs (writer, limit) {
+  getLogs (writer, limit, opts) {
     if (!limit) {
       limit = 20;
     }
 
-    const logFile = path.join(logs.assertLogsPath(), config.get('logFileName'));
+    const logFile = path.join(logs.assertLogsPath(), opts.logFile);
 
     logs.readLogLines(logFile, limit, (val) => {
       writer.write(val);
@@ -203,43 +242,55 @@ class Controller {
   /**
    * Deploys a function to the emulator.
    *
-   * @param {String}  modulePath The local file system path (rel or abs) to the
+   * @param {string}  modulePath The local file system path (rel or abs) to the
    *                  Node module containing the function to be deployed
-   * @param {String}  entryPoint The (case sensitive) name of the function to
+   * @param {string}  entryPoint The (case sensitive) name of the function to
    *                  be deployed.  This must be a function that is exported
    *                  from the host module
-   * @param {String}  type One of 'H' (HTTP) or 'B' (BACKGROUND).  This
+   * @param {string}  type One of 'H' (HTTP) or 'B' (BACKGROUND).  This
    *                  corresponds to the method used to invoke the function
    *                  (HTTP or direct invocation with a context argument)
+   * @param {object} opts Configuration options.
    */
-  deploy (modulePath, entryPoint, type) {
-    const url = `${EMULATOR_FUNC_URI}${entryPoint}?path=${path.resolve(modulePath)}&type=${type}`;
-    return this._action({ method: 'POST', url });
+  deploy (modulePath, entryPoint, type, opts) {
+    return this._action({
+      method: 'POST',
+      url: `${this.getEmulatorFuncUri(opts)}${entryPoint}?path=${path.resolve(modulePath)}&type=${type}`
+    });
   }
 
   /**
    * Removes a previously deployed function from the emulator.
+   *
+   * @param {string} name The name of the function to delete.
+   * @param {object} opts Configuration options.
    */
-  undeploy (name) {
-    return this._action({ method: 'DELETE', url: `${EMULATOR_FUNC_URI}${name}` });
+  undeploy (name, opts) {
+    return this._action({
+      method: 'DELETE',
+      url: `${this.getEmulatorFuncUri(opts)}${name}`
+    });
   }
 
   /**
    * Returns a JSON document containing all deployed functions including any
    * metadata that was associated with the function at deploy time.
+   *
+   * @param {object} opts Configuration options.
    */
-  list () {
-    return this._action(EMULATOR_FUNC_URI);
+  list (opts) {
+    return this._action(this.getEmulatorFuncUri(opts));
   }
 
   /**
    * Describes a single function deployed to the emulator. This includes the
    * function name and associated metadata.
    *
-   * @param {string} name The case sensitive name of the function to describe.
+   * @param {string} name The name of the function to describe.
+   * @param {object} opts Configuration options.
    */
-  describe (name) {
-    return this._action(`${EMULATOR_FUNC_URI}${name}`);
+  describe (name, opts) {
+    return this._action(`${this.getEmulatorFuncUri(opts)}${name}`);
   }
 
   /**
@@ -251,9 +302,15 @@ class Controller {
    *
    * @param {string} name The (case sensitive) name of the function to be invoked
    * @param {object} data A JSON document representing the function invocation payload
+   * @param {object} opts Configuration options.
    */
-  call (name, data = {}) {
-    return this._action({ method: 'POST', url: `${EMULATOR_ROOT_URI}/${name}`, data, raw: true });
+  call (name, data, opts) {
+    return this._action({
+      data,
+      method: 'POST',
+      url: `${this.getEmulatorRootUri(opts)}/${name}`,
+      raw: true
+    });
   }
 
   /**
@@ -261,19 +318,19 @@ class Controller {
    * GCP project used when starting the child process, and whether the process
    * is running in debug mode.
    */
-  getCurrentEnvironment () {
+  getCurrentEnvironment (opts) {
     return this._action({
-      url: `${EMULATOR_ROOT_URI}/?env=true`,
+      url: `${this.getEmulatorRootUri(opts)}/?env=true`,
       timeout: 2000
     });
   }
 
-  _waitForStop (port, timeout, i) {
+  _waitForStop (opts, i) {
     if (!i) {
-      i = timeout / TIMEOUT_POLL_INCREMENT;
+      i = opts.timeout / TIMEOUT_POLL_INCREMENT;
     }
 
-    return this.testConnection()
+    return this.testConnection(opts)
       .then(() => {
         i--;
 
@@ -283,18 +340,18 @@ class Controller {
 
         return new Promise((resolve, reject) => {
           setTimeout(() => {
-            this._waitForStop(port, timeout, i).then(resolve, reject);
+            this._waitForStop(opts, i).then(resolve, reject);
           }, TIMEOUT_POLL_INCREMENT);
         });
       }, () => {});
   }
 
-  _waitForStart (port, timeout, i) {
+  _waitForStart (opts, i) {
     if (!i) {
-      i = timeout / TIMEOUT_POLL_INCREMENT;
+      i = opts.timeout / TIMEOUT_POLL_INCREMENT;
     }
 
-    return this.testConnection()
+    return this.testConnection(opts)
       .catch(() => {
         i--;
 
@@ -304,15 +361,18 @@ class Controller {
 
         return new Promise((resolve, reject) => {
           setTimeout(() => {
-            this._waitForStart(port, timeout, i).then(resolve, reject);
+            this._waitForStart(opts, i).then(resolve, reject);
           }, TIMEOUT_POLL_INCREMENT);
         });
       });
   }
 
-  testConnection () {
+  testConnection (opts) {
+    const host = opts.host || store.status.get('host') || store.config.get('host');
+    const port = opts.port || store.status.get('port') || store.config.get('port');
+
     return new Promise((resolve, reject) => {
-      const client = net.connect(config.get('port'), config.get('host'), () => {
+      const client = net.connect(port, host, () => {
         client.end();
         resolve();
       });
@@ -344,19 +404,8 @@ class Controller {
     return got(opts.url, opts).then((response) => raw ? response : response.body);
   }
 
-  _writePID (pid) {
-    // Write the pid to the file system in case we need to kill it
-    return new Promise((resolve) => {
-      // Ignore any error
-      fs.writeFile(PID_PATH, pid, () => resolve());
-    });
-  }
-
   _deletePID () {
-    return new Promise((resolve) => {
-      // Ignore any error
-      fs.unlink(PID_PATH, () => resolve());
-    });
+    store.status.delete('pid');
   }
 }
 

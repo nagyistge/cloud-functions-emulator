@@ -25,18 +25,26 @@ const utils = require('../utils');
  */
 exports.command = 'restart';
 exports.describe = 'Restarts the emulator.';
-
-exports.builder = {};
+exports.builder = {
+  timeout: {
+    alias: 't',
+    description: 'The timeout in milliseconds to wait for the emulator to restart.',
+    requiresArg: true,
+    type: 'number'
+  }
+};
 
 /**
  * Handler for the "restart" command.
+ *
+ * @param {object} opts Configuration options.
  */
-exports.handler = (opts = {}) => {
-  return controller.status()
+exports.handler = (opts) => {
+  return controller.status(opts)
     .then((status) => {
       if (status.state === controller.STATE.RUNNING) {
-        return stop()
-          .then(() => start(Object.assign(opts, status.metadata)));
+        return stop(opts)
+          .then(() => start(opts));
       } else {
         return start(opts);
       }

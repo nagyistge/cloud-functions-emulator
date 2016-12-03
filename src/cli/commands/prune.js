@@ -24,19 +24,20 @@ const utils = require('../utils');
  */
 exports.command = 'prune';
 exports.describe = 'Removes any functions known to the emulator but which no longer exist in their corresponding module.';
-
 exports.builder = {};
 
 /**
- * Handler for the "clear" command.
+ * Handler for the "prune" command.
+ *
+ * @param {object} opts Configuration options.
  */
-exports.handler = () => {
-  return utils.doIfRunning()
-    .then(() => controller.prune())
-    .then((body) => {
+exports.handler = (opts) => {
+  return utils.doIfRunning(opts)
+    .then(() => controller.prune(opts))
+    .then((count) => {
       utils.writer.write(utils.APP_NAME);
-      utils.writer.write(('PRUNED ' + body + ' functions\n').green);
-      list();
+      utils.writer.write((`PRUNED ${count} functions\n`).green);
+      list(opts);
     })
     .catch(utils.handleError);
 };

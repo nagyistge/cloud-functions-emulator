@@ -21,7 +21,7 @@ const utils = require('../utils');
 /**
  * http://yargs.js.org/docs/#methods-commandmodule-providing-a-command-module
  */
-exports.command = 'deploy <modulePath> <functionName>';
+exports.command = 'deploy <functionName> <modulePath>';
 exports.describe = 'Deploys a function with the given module path and function name (entry point).';
 exports.builder = {
   'trigger-http': {
@@ -35,15 +35,15 @@ exports.builder = {
  * Handler for the "deploy" command.
  *
  * @param {object} opts Configuration options.
- * @param {string} opts.functionName TODO.
+ * @param {string} opts.functionName The name of the function to deploy.
  * @param {string} opts.modulePath TODO.
  * @param {boolean} [opts.trigger-http] TODO.
  */
 exports.handler = (opts) => {
-  return utils.doIfRunning()
+  return utils.doIfRunning(opts)
     .then(() => {
       const type = (opts['trigger-http'] === true) ? 'H' : 'B';
-      return controller.deploy(opts.modulePath, opts.functionName, type);
+      return controller.deploy(opts.modulePath, opts.functionName, type, opts);
     })
     .then((body) => {
       utils.writer.log(`Function ${opts.functionName} deployed.`.green);
